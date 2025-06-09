@@ -1,0 +1,66 @@
+package com.example.inventario.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import com.example.inventario.InventarioDBHelper
+
+@Composable
+fun PantallaListaArticulos(dbHelper: InventarioDBHelper, navController: NavHostController) {
+    var lista by remember { mutableStateOf(dbHelper.obtenerTodos()) }
+    val tipos = listOf("Pequeño", "Mediano", "Grande", "Todos", "No aplica")
+
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text("Lista de Artículos", style = MaterialTheme.typography.headlineSmall)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(onClick = { navController.popBackStack() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Volver")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        Divider(thickness = 1.dp)
+
+        tipos.forEach { tipo ->
+            val articulosPorTipo = lista.filter { it.tipoAsador == tipo }
+
+            if (articulosPorTipo.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Tipo: $tipo", style = MaterialTheme.typography.titleMedium)
+
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    items(articulosPorTipo) { articulo ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            elevation = CardDefaults.cardElevation(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Código: ${articulo.codigo}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Nombre: ${articulo.nombre}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Asador: ${articulo.tipoAsador}", style = MaterialTheme.typography.bodySmall)
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Valor: \$${articulo.valor}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Stock: ${articulo.existencia}", style = MaterialTheme.typography.bodySmall)
+                                    Text("Unidades necesarias: ${articulo.unidadesNecesarias}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

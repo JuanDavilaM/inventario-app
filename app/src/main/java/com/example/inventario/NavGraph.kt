@@ -1,0 +1,38 @@
+package com.example.inventario.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import com.example.inventario.InventarioDBHelper
+import com.example.inventario.screens.*
+
+@Composable
+fun AppNavHost(
+    navController: NavHostController,
+    dbHelper: InventarioDBHelper
+) {
+    NavHost(
+        navController = navController,
+        startDestination = "pantalla1"
+    ) {
+        composable("pantalla1") {
+            Pantalla1(navController)
+        }
+        composable("inventario") {
+            PantallaInventario(dbHelper, navController)
+        }
+        composable("movimientos") {
+            PantallaMovimientos(dbHelper, navController)
+        }
+        composable("historial") {
+            PantallaHistorial(dbHelper, navController)
+        }
+        composable("lista") {
+            PantallaListaArticulos(dbHelper, navController)
+        }
+        composable("calcular") {
+            PantallaCalcularAsadores(dbHelper, navController)
+        }
+    }
+}
