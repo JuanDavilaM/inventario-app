@@ -14,7 +14,7 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = "pantalla1"
+        startDestination = "pantalla1" // Cambiar a la pantalla inicial de tu preferencia
     ) {
         composable("pantalla1") {
             Pantalla1(navController)
@@ -34,5 +34,22 @@ fun AppNavHost(
         composable("calcular") {
             PantallaCalcularAsadores(dbHelper, navController)
         }
+        // Agregar la pantalla de Lista de Asadores
+        composable("pantalla_lista_asadores") {
+            PantallaListaAsadores(dbHelper, navController)
+        }
+
+        composable("perfiles") {
+            PantallaPerfiles(dbHelper, navController)
+        }
+
+        composable("lista_pedidos") {
+            PantallaListaPedidos(dbHelper, navController)
+        }
+
+        composable("clientes") {
+            PantallaClientes(dbHelper, navController)
+        }
+
     }
 }

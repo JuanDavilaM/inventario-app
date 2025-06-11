@@ -41,6 +41,7 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
     var expanded by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
     var confirmandoBorrado by remember { mutableStateOf(false) }
+    var codigoBorrar by remember { mutableStateOf("") }
 
     val tiposAsador = listOf("Pequeño", "Mediano", "Grande", "Todos", "No aplica")
 
@@ -49,33 +50,9 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Inventario", color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menú", tint = Color.White)
-                    }
-                },
-                actions = {
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(text = { Text("Ir a Movimientos") }, onClick = {
-                            menuExpanded = false
-                            navController.navigate("movimientos")
-                        })
-                        DropdownMenuItem(text = { Text("Ver Lista de Artículos") }, onClick = {
-                            menuExpanded = false
-                            navController.navigate("lista")
-                        })
-                        DropdownMenuItem(text = { Text("Calcular Asadores") }, onClick = {
-                            menuExpanded = false
-                            navController.navigate("calcular")
-                        })
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF3F51B5))
+            Header(
+                title = "Inventario",
+                navController = navController
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -87,7 +64,7 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
                 .background(Color(0xFFE6F0FF))
                 .padding(16.dp)
                 .padding(paddingValues),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -98,11 +75,36 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(value = codigo, onValueChange = { codigo = it }, label = { Text("Código") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = valor, onValueChange = { valor = it }, label = { Text("Valor") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = existencia, onValueChange = { existencia = it }, label = { Text("Existencia") }, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = unidadesNecesarias, onValueChange = { unidadesNecesarias = it }, label = { Text("Unidades necesarias por asador") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = codigo,
+                onValueChange = { codigo = it },
+                label = { Text("Código") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = nombre,
+                onValueChange = { nombre = it },
+                label = { Text("Nombre") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = valor,
+                onValueChange = { valor = it },
+                label = { Text("Valor") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = existencia,
+                onValueChange = { existencia = it },
+                label = { Text("Existencia") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = unidadesNecesarias,
+                onValueChange = { unidadesNecesarias = it },
+                label = { Text("Unidades necesarias por asador") },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
                 OutlinedTextField(
@@ -147,8 +149,22 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
                 Text("Guardar Artículo")
             }
 
+            // Campo para ingresar el código del artículo a borrar
+            OutlinedTextField(
+                value = codigoBorrar,
+                onValueChange = { codigoBorrar = it },
+                label = { Text("Código del artículo a borrar") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Button(
-                onClick = { confirmandoBorrado = true },
+                onClick = {
+                    if (codigoBorrar.isBlank()) {
+                        mensajeSnackbar = "Por favor ingresa el código del artículo a borrar"
+                    } else {
+                        confirmandoBorrado = true
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
@@ -156,51 +172,24 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
             }
 
             if (confirmandoBorrado) {
-                var claveInput by remember { mutableStateOf("") }
-                val claveGuardada = context.obtenerClave()
-                var creandoClave by remember { mutableStateOf(claveGuardada == null) }
-
                 AlertDialog(
                     onDismissRequest = { confirmandoBorrado = false },
-                    title = { Text(if (creandoClave) "Crear Clave" else "Autenticación") },
-                    text = {
-                        Column {
-                            Text(if (creandoClave) "Establece una clave para borrar artículos" else "Ingresa la clave para confirmar")
-                            OutlinedTextField(
-                                value = claveInput,
-                                onValueChange = { claveInput = it },
-                                label = { Text("Clave") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    },
+                    title = { Text("Confirmar borrado") },
+                    text = { Text("¿Estás seguro de que deseas borrar el artículo con código: $codigoBorrar?") },
                     confirmButton = {
-                        TextButton(onClick = {
-                            if (creandoClave) {
-                                if (claveInput.length < 3) {
-                                    mensajeSnackbar = "La clave debe tener al menos 3 caracteres"
+                        TextButton(
+                            onClick = {
+                                val eliminado = dbHelper.eliminarArticuloPorCodigo(codigoBorrar)
+                                if (eliminado) {
+                                    mensajeSnackbar = "Artículo eliminado correctamente"
+                                    codigoBorrar = ""
                                 } else {
-                                    context.guardarClave(claveInput)
-                                    creandoClave = false
-                                    mensajeSnackbar = "Clave guardada. Intenta de nuevo borrar."
-                                    confirmandoBorrado = false
+                                    mensajeSnackbar = "No se encontró el artículo con ese código"
                                 }
-                            } else {
-                                if (claveInput == claveGuardada) {
-                                    val eliminado = dbHelper.eliminarArticuloPorCodigo(codigo)
-                                    if (eliminado) {
-                                        codigo = ""; nombre = ""; valor = ""; existencia = ""; tipoAsador = ""; unidadesNecesarias = ""
-                                        mensajeSnackbar = "Artículo eliminado correctamente"
-                                    } else {
-                                        mensajeSnackbar = "No se encontró el artículo con ese código"
-                                    }
-                                    confirmandoBorrado = false
-                                } else {
-                                    mensajeSnackbar = "Clave incorrecta"
-                                }
+                                confirmandoBorrado = false
                             }
-                        }) {
-                            Text(if (creandoClave) "Guardar" else "Aceptar")
+                        ) {
+                            Text("Borrar")
                         }
                     },
                     dismissButton = {
