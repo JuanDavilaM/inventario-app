@@ -16,6 +16,8 @@ import com.example.inventario.InventarioDBHelper
 @Composable
 fun PantallaListaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostController) {
     val perfiles = dbHelper.obtenerPerfiles() // Obtener todos los perfiles desde la base de datos
+    val clientes = dbHelper.obtenerClientes() // Obtener todos los clientes
+    var filtro by remember { mutableStateOf("") }
 
     Scaffold(
         containerColor = Color.White // Fondo blanco para la pantalla
@@ -30,24 +32,32 @@ fun PantallaListaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostCo
         ) {
             Text("Lista de Perfiles de Clientes", color = Color.Black, style = MaterialTheme.typography.headlineSmall)
 
+            OutlinedTextField(
+                value = filtro,
+                onValueChange = { filtro = it },
+                label = { Text("Buscar por nombre") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            val clientesFiltrados = clientes.filter { it.nombre.contains(filtro, ignoreCase = true) }
+
             LazyColumn {
-                items(perfiles) { perfil ->
+                items(clientesFiltrados) { cliente ->
+                    val cantidadPedidos = perfiles.count { it.clienteId == cliente.id }
                     Card(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp), // Más separación entre tarjetas
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0))
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            modifier = Modifier.padding(16.dp)
                         ) {
-                            Column {
-                                Text("Nombre: ${perfil.nombre}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Ahumadores Pequeños: ${perfil.cantidadPequenos}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Ahumadores Medianos: ${perfil.cantidadMedianos}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Ahumadores Grandes: ${perfil.cantidadGrandes}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Valor Total: \$${perfil.valorTotal}", style = MaterialTheme.typography.bodyMedium)
-                            }
+                            Text("Nombre: ${cliente.nombre}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Teléfono: ${cliente.telefono}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Correo: ${cliente.correo}", style = MaterialTheme.typography.bodyMedium)
+                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                            Text("Cantidad de pedidos realizados: $cantidadPedidos", style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 }

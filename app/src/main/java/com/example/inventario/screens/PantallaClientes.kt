@@ -76,18 +76,6 @@ fun PantallaClientes(dbHelper: InventarioDBHelper, navController: NavHostControl
                 Text(mensaje, color = if (mensaje.contains("exitosamente")) Color(0xFF4CAF50) else Color.Red)
             }
             Divider(modifier = Modifier.padding(vertical = 8.dp))
-            Text("Clientes registrados:", style = MaterialTheme.typography.titleMedium)
-            LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                items(clientes) { cliente ->
-                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Nombre: ${cliente.nombre}")
-                            Text("Teléfono: ${cliente.telefono}")
-                            Text("Correo: ${cliente.correo}")
-                        }
-                    }
-                }
-            }
         }
     }
 } 

@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import com.example.inventario.InventarioDBHelper
 import com.example.inventario.screens.*
 
+
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -66,6 +67,14 @@ fun AppNavHost(
         composable("exportar") {
             PantallaExportar(dbHelper, navController)
         }
+
+        composable("lista_movimientos") {
+            PantallaListaMovimientos(dbHelper, navController)
+        }
+
+        composable("lista_perfiles") {
+    PantallaListaPerfiles(dbHelper, navController)
+    }
 
     }
 }

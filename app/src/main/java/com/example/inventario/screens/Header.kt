@@ -1,12 +1,20 @@
 package com.example.inventario.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -19,7 +27,13 @@ fun Header(
     var expanded by remember { mutableStateOf(false) }
 
     TopAppBar(
-        title = { Text(title, color = Color.White) },
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = Color.White)
+                Spacer(modifier = Modifier.width(12.dp))
+                
+            }
+        },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF3F51B5)),
         navigationIcon = {
             if (showBackButton) {
@@ -86,8 +100,6 @@ fun Header(
                             navController.navigate("cartera")
                         }
                     )
-
-                    // Exportar datos
                     DropdownMenuItem(
                         text = { Text("Exportar Datos") },
                         onClick = {
@@ -95,24 +107,8 @@ fun Header(
                             navController.navigate("exportar")
                         }
                     )
-
-                    // Listas y cálculos
                     DropdownMenuItem(
-                        text = { Text("Lista de Artículos") },
-                        onClick = {
-                            expanded = false
-                            navController.navigate("lista")
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Lista de Ahumadores") },
-                        onClick = {
-                            expanded = false
-                            navController.navigate("pantalla_lista_asadores")
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Calcular Ahumadores") },
+                        text = { Text("Convertir Ahumadores") },
                         onClick = {
                             expanded = false
                             navController.navigate("calcular")
@@ -125,6 +121,60 @@ fun Header(
                             navController.navigate("calculo_faltante")
                         }
                     )
+                    Divider()
+                    // Submenú de Listas
+                    var expandedListas by remember { mutableStateOf(false) }
+                    DropdownMenuItem(
+                        text = { Text("Listas ▶") },
+                        onClick = {
+                            expandedListas = true
+                        }
+                    )
+                    DropdownMenu(
+                        expanded = expandedListas,
+                        onDismissRequest = { expandedListas = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Lista de Artículos") },
+                            onClick = {
+                                expandedListas = false
+                                expanded = false
+                                navController.navigate("lista")
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Lista de Ahumadores") },
+                            onClick = {
+                                expandedListas = false
+                                expanded = false
+                                navController.navigate("pantalla_lista_asadores")
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Lista de Movimientos") },
+                            onClick = {
+                                expandedListas = false
+                                expanded = false
+                                navController.navigate("lista_movimientos")
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Lista de Pedidos") },
+                            onClick = {
+                                expandedListas = false
+                                expanded = false
+                                navController.navigate("lista_pedidos")
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Lista de Perfiles") },
+                            onClick = {
+                                expandedListas = false
+                                expanded = false
+                                navController.navigate("lista_perfiles")
+                            }
+                        )
+                    }
                 }
             }
         }

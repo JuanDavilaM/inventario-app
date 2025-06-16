@@ -46,28 +46,6 @@ fun Pantalla1(navController: NavHostController) {
             )
 
             Spacer(modifier = Modifier.height(24.dp)) // más separación bajo la imagen
-
-            Button(
-                onClick = { navController.navigate("inventario") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1E88E5), // Azul estilizado
-                    contentColor = Color.White
-                ),
-                shape = MaterialTheme.shapes.medium,
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 6.dp,
-                    pressedElevation = 10.dp
-                )
-            ) {
-                Text(
-                    "Ir a Inventario",
-                    fontSize = 18.sp
-                )
-            }
         }
     }
 }

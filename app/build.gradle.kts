@@ -90,6 +90,8 @@ dependencies {
         exclude(group = "org.apache.logging.log4j", module = "log4j-api")
     }
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation(libs.androidx.foundation.android)
+    implementation(libs.androidx.foundation.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

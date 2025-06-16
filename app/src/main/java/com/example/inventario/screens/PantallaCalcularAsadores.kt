@@ -13,6 +13,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.inventario.InventarioDBHelper
+import java.text.SimpleDateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,6 +27,9 @@ fun PantallaCalcularAsadores(dbHelper: InventarioDBHelper, navController: NavHos
     var cantidadAgregar by remember { mutableStateOf("") }
     var asadoresCreadoTotal by remember { mutableStateOf(0) }
     var cantidadPosible by remember { mutableStateOf(0) }
+    var mostrarConfirmacion by remember { mutableStateOf(false) }
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy")
+    val fechaHoy = dateFormat.format(Date())
 
     val articulos = dbHelper.obtenerTodos()
 
@@ -85,47 +90,16 @@ fun PantallaCalcularAsadores(dbHelper: InventarioDBHelper, navController: NavHos
             )
 
             // Botón para calcular cuántos asadores puedes crear
-            Button(onClick = {
-                if (tipoSeleccionado.isBlank() || valorIngresado.isBlank() || cantidadAgregar.isBlank()) {
-                    resultado = "Por favor, completa todos los campos."
-                    return@Button
-                }
-
-                val cantidad = cantidadAgregar.toIntOrNull() ?: 0
-                val tipoCodigo = when (tipoSeleccionado) {
-                    "Pequeño" -> 1
-                    "Mediano" -> 2
-                    "Grande" -> 3
-                    else -> 0
-                }
-
-                // Calcular cuántos asadores se pueden hacer con los componentes disponibles
-                val componentes = articulos.filter { it.tipoAsador == tipoSeleccionado && it.unidadesNecesarias > 0 }
-                val minAsadores = if (componentes.isNotEmpty()) {
-                    componentes.minOf { it.existencia / it.unidadesNecesarias }
-                } else 0
-
-                cantidadPosible = minAsadores
-
-                if (cantidad > cantidadPosible) {
-                    resultado = "No puedes crear esa cantidad de asadores. Solo puedes crear $cantidadPosible asadores."
-                } else {
-                    // Restar las unidades necesarias para crear los asadores
-                    componentes.forEach { articulo ->
-                        val asadoresAConstruir = cantidad
-                        val unidadesRestantes = articulo.existencia - (asadoresAConstruir * articulo.unidadesNecesarias)
-                        dbHelper.actualizarExistencia(articulo.codigo, unidadesRestantes)
+            Button(
+                onClick = {
+                    if (tipoSeleccionado.isBlank() || valorIngresado.isBlank() || cantidadAgregar.isBlank()) {
+                        resultado = "Por favor, completa todos los campos."
+                        return@Button
                     }
-
-                    // Añadir los asadores creados al inventario con el valor ingresado
-                    val valorNumerico = valorIngresado.toDoubleOrNull() ?: 0.0
-                    dbHelper.agregarAhumadoresCreados(cantidad, tipoSeleccionado, tipoCodigo, valorNumerico)
-
-                    asadoresCreadoTotal += cantidad
-
-                    resultado = "Se han creado $cantidad asadores tipo $tipoSeleccionado con un valor de \$${valorNumerico} cada uno."
-                }
-            }, modifier = Modifier.fillMaxWidth()) {
+                    mostrarConfirmacion = true
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Text("Calcular Asadores")
             }
 
@@ -142,6 +116,71 @@ fun PantallaCalcularAsadores(dbHelper: InventarioDBHelper, navController: NavHos
             // Botón para ver la lista de asadores
             Button(onClick = { navController.navigate("pantalla_lista_asadores") }, modifier = Modifier.fillMaxWidth()) {
                 Text("Ver Lista de Asadores")
+            }
+
+            if (mostrarConfirmacion) {
+                AlertDialog(
+                    onDismissRequest = { mostrarConfirmacion = false },
+                    title = { Text("Confirmar conversión") },
+                    text = { Text("¿Seguro que quieres crear $cantidadAgregar asadores tipo $tipoSeleccionado?") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val cantidad = cantidadAgregar.toIntOrNull() ?: 0
+                            val tipoCodigo = when (tipoSeleccionado) {
+                                "Pequeño" -> 1
+                                "Mediano" -> 2
+                                "Grande" -> 3
+                                else -> 0
+                            }
+                            val componentes = articulos.filter { it.tipoAsador == tipoSeleccionado && it.unidadesNecesarias > 0 }
+                            val minAsadores = if (componentes.isNotEmpty()) {
+                                componentes.minOf { it.existencia / it.unidadesNecesarias }
+                            } else 0
+                            cantidadPosible = minAsadores
+                            if (cantidad > cantidadPosible) {
+                                resultado = "No puedes crear esa cantidad de asadores. Solo puedes crear $cantidadPosible asadores."
+                            } else {
+                                componentes.forEach { articulo ->
+                                    val asadoresAConstruir = cantidad
+                                    val unidadesRestantes = articulo.existencia - (asadoresAConstruir * articulo.unidadesNecesarias)
+                                    dbHelper.actualizarExistencia(articulo.codigo, unidadesRestantes)
+                                    val movArticulo = Movimiento(
+                                        tipo = "Salida",
+                                        fecha = fechaHoy,
+                                        codigo = articulo.codigo,
+                                        cantidad = asadoresAConstruir * articulo.unidadesNecesarias,
+                                        valorUnitario = articulo.valor,
+                                        promedio = articulo.valor,
+                                        esAjuste = false
+                                    )
+                                    dbHelper.registrarMovimiento(movArticulo)
+                                }
+                                val valorNumerico = valorIngresado.toDoubleOrNull() ?: 0.0
+                                dbHelper.agregarAhumadoresCreados(cantidad, tipoSeleccionado, tipoCodigo, valorNumerico)
+                                asadoresCreadoTotal += cantidad
+                                resultado = "Se han creado $cantidad asadores tipo $tipoSeleccionado con un valor de \$${valorNumerico} cada uno."
+                                val movAhumador = Movimiento(
+                                    tipo = "Entrada",
+                                    fecha = fechaHoy,
+                                    codigo = "Ahumador_${tipoCodigo}",
+                                    cantidad = cantidad,
+                                    valorUnitario = valorNumerico,
+                                    promedio = valorNumerico,
+                                    esAjuste = false
+                                )
+                                dbHelper.registrarMovimiento(movAhumador)
+                            }
+                            mostrarConfirmacion = false
+                        }) {
+                            Text("Sí, convertir")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { mostrarConfirmacion = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                )
             }
         }
     }

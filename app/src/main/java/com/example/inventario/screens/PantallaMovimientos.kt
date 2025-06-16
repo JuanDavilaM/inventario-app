@@ -139,6 +139,15 @@ fun PantallaMovimientos(dbHelper: InventarioDBHelper, navController: NavHostCont
                     }
                 }
 
+                // Mostrar el nombre del artículo seleccionado
+                if (articuloSeleccionado != null) {
+                    Text(
+                        text = "Nombre: ${articuloSeleccionado?.nombre}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color(0xFF3F51B5)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
