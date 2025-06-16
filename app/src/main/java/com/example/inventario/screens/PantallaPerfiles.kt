@@ -39,6 +39,8 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
     var valorGrande by remember { mutableStateOf(0.0) }
     var fecha by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
+    var fechaComprometida by remember { mutableStateOf("") }
+    var showDatePickerComprometida by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -48,6 +50,16 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
         context,
         { _, year, month, dayOfMonth ->
             fecha = "%02d/%02d/%04d".format(dayOfMonth, month + 1, year)
+        },
+        calendar.get(java.util.Calendar.YEAR),
+        calendar.get(java.util.Calendar.MONTH),
+        calendar.get(java.util.Calendar.DAY_OF_MONTH)
+    )
+
+    val datePickerDialogComprometida = android.app.DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            fechaComprometida = "%02d/%02d/%04d".format(dayOfMonth, month + 1, year)
         },
         calendar.get(java.util.Calendar.YEAR),
         calendar.get(java.util.Calendar.MONTH),
@@ -119,6 +131,26 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
                 }
             }
 
+            // Selección de fecha comprometida
+            OutlinedTextField(
+                value = fechaComprometida,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Fecha comprometida de entrega") },
+                trailingIcon = {
+                    IconButton(onClick = { showDatePickerComprometida = true }) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Seleccionar fecha comprometida")
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (showDatePickerComprometida) {
+                LaunchedEffect(Unit) {
+                    datePickerDialogComprometida.show()
+                    showDatePickerComprometida = false
+                }
+            }
+
             // Obtener el valor unitario de cada tipo de ahumador
             if (cantidadPequenos.isNotEmpty()) valorPequeno = dbHelper.obtenerValorAhumador("Pequeño")
             if (cantidadMedianos.isNotEmpty()) valorMediano = dbHelper.obtenerValorAhumador("Mediano")
@@ -165,7 +197,8 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
                             cantidadMedianos = cantidadMedianosInt,
                             cantidadGrandes = cantidadGrandesInt,
                             valorTotal = total,
-                            fecha = fechaFinal
+                            fecha = fechaFinal,
+                            fechaComprometida = fechaComprometida
                         )
                         if (insertado) {
                             contadorPedidos = dbHelper.obtenerPerfiles().size + 1
@@ -174,6 +207,7 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
                             cantidadGrandes = ""
                             valorTotal = "0.00"
                             fecha = ""
+                            fechaComprometida = ""
                             mensajeSnackbar = "Perfil guardado exitosamente."
                         } else {
                             mensajeSnackbar = "Error al guardar perfil."

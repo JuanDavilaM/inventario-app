@@ -11,7 +11,7 @@ import com.example.inventario.screens.Perfil
 import com.example.inventario.screens.Cliente
 
 class InventarioDBHelper(context: Context) :
-    SQLiteOpenHelper(context, "InventarioDB", null, 11) { // Subir versión a 11
+    SQLiteOpenHelper(context, "InventarioDB", null, 12) { // Subir versión a 12
 
     override fun onCreate(db: SQLiteDatabase) {
         // Crear la tabla de artículos (para artículos regulares)
@@ -69,7 +69,12 @@ class InventarioDBHelper(context: Context) :
                 cantidadMedianos INTEGER,
                 cantidadGrandes INTEGER,
                 valorTotal REAL,
-                fecha TEXT
+                fecha TEXT,
+                despachadoPequenos INTEGER DEFAULT 0,
+                despachadoMedianos INTEGER DEFAULT 0,
+                despachadoGrandes INTEGER DEFAULT 0,
+                fechaComprometida TEXT,
+                estado TEXT DEFAULT 'Activo'
             )"""
         )
     }
@@ -100,6 +105,13 @@ class InventarioDBHelper(context: Context) :
                 db.execSQL("ALTER TABLE movimientos ADD COLUMN esAjuste INTEGER DEFAULT 0")
             } catch (e: Exception) {}
         }
+        if (oldVersion < 12) {
+            try { db.execSQL("ALTER TABLE perfiles ADD COLUMN despachadoPequenos INTEGER DEFAULT 0") } catch (e: Exception) {}
+            try { db.execSQL("ALTER TABLE perfiles ADD COLUMN despachadoMedianos INTEGER DEFAULT 0") } catch (e: Exception) {}
+            try { db.execSQL("ALTER TABLE perfiles ADD COLUMN despachadoGrandes INTEGER DEFAULT 0") } catch (e: Exception) {}
+            try { db.execSQL("ALTER TABLE perfiles ADD COLUMN fechaComprometida TEXT") } catch (e: Exception) {}
+            try { db.execSQL("ALTER TABLE perfiles ADD COLUMN estado TEXT DEFAULT 'Activo'") } catch (e: Exception) {}
+        }
         // Actualiza la base de datos si es necesario
         if (oldVersion < 7) {  // Si la versión es menor que 7, actualiza creando la tabla 'perfiles'
             try {
@@ -116,7 +128,12 @@ class InventarioDBHelper(context: Context) :
                         cantidadMedianos INTEGER,
                         cantidadGrandes INTEGER,
                         valorTotal REAL,
-                        fecha TEXT
+                        fecha TEXT,
+                        despachadoPequenos INTEGER DEFAULT 0,
+                        despachadoMedianos INTEGER DEFAULT 0,
+                        despachadoGrandes INTEGER DEFAULT 0,
+                        fechaComprometida TEXT,
+                        estado TEXT DEFAULT 'Activo'
                     )"""
                 )
             } catch (e: Exception) {
@@ -307,7 +324,12 @@ class InventarioDBHelper(context: Context) :
                     cantidadMedianos = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadMedianos")),
                     cantidadGrandes = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadGrandes")),
                     valorTotal = cursor.getDouble(cursor.getColumnIndexOrThrow("valorTotal")),
-                    fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha"))
+                    fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha")),
+                    despachadoPequenos = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoPequenos")),
+                    despachadoMedianos = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoMedianos")),
+                    despachadoGrandes = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoGrandes")),
+                    fechaComprometida = cursor.getString(cursor.getColumnIndexOrThrow("fechaComprometida")),
+                    estado = cursor.getString(cursor.getColumnIndexOrThrow("estado"))
                 )
             )
         }
@@ -330,7 +352,12 @@ class InventarioDBHelper(context: Context) :
                     cantidadMedianos = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadMedianos")),
                     cantidadGrandes = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadGrandes")),
                     valorTotal = cursor.getDouble(cursor.getColumnIndexOrThrow("valorTotal")),
-                    fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha"))
+                    fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha")),
+                    despachadoPequenos = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoPequenos")),
+                    despachadoMedianos = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoMedianos")),
+                    despachadoGrandes = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoGrandes")),
+                    fechaComprometida = cursor.getString(cursor.getColumnIndexOrThrow("fechaComprometida")),
+                    estado = cursor.getString(cursor.getColumnIndexOrThrow("estado"))
                 )
             )
         }
@@ -346,7 +373,12 @@ class InventarioDBHelper(context: Context) :
         cantidadMedianos: Int,
         cantidadGrandes: Int,
         valorTotal: Double,
-        fecha: String
+        fecha: String,
+        fechaComprometida: String?,
+        despachadoPequenos: Int = 0,
+        despachadoMedianos: Int = 0,
+        despachadoGrandes: Int = 0,
+        estado: String = "Activo"
     ): Boolean {
         val db = writableDatabase
         val values = ContentValues().apply {
@@ -357,6 +389,11 @@ class InventarioDBHelper(context: Context) :
             put("cantidadGrandes", cantidadGrandes)
             put("valorTotal", valorTotal)
             put("fecha", fecha)
+            put("fechaComprometida", fechaComprometida)
+            put("despachadoPequenos", despachadoPequenos)
+            put("despachadoMedianos", despachadoMedianos)
+            put("despachadoGrandes", despachadoGrandes)
+            put("estado", estado)
         }
         val resultado = db.insert("perfiles", null, values)
         return resultado != -1L
@@ -413,5 +450,29 @@ class InventarioDBHelper(context: Context) :
         }
         val filasAfectadas = db.update("asadores", values, "tipoAsador = ?", arrayOf(tipoAsador))
         return filasAfectadas > 0
+    }
+
+    // Despachar parcialmente un pedido
+    fun despacharPedido(
+        pedidoId: Int,
+        nuevosDespachadoPequenos: Int,
+        nuevosDespachadoMedianos: Int,
+        nuevosDespachadoGrandes: Int
+    ) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("despachadoPequenos", nuevosDespachadoPequenos)
+            put("despachadoMedianos", nuevosDespachadoMedianos)
+            put("despachadoGrandes", nuevosDespachadoGrandes)
+        }
+        db.update("perfiles", values, "id = ?", arrayOf(pedidoId.toString()))
+    }
+
+    fun actualizarEstadoPedido(pedidoId: Int, nuevoEstado: String) {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("estado", nuevoEstado)
+        }
+        db.update("perfiles", values, "id = ?", arrayOf(pedidoId.toString()))
     }
 }

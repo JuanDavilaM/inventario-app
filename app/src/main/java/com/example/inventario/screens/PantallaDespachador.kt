@@ -17,7 +17,7 @@ import com.example.inventario.InventarioDBHelper
 @Composable
 fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostController) {
     val context = LocalContext.current
-    val pedidos = remember { dbHelper.obtenerPerfiles() }
+    var pedidos by remember { mutableStateOf(dbHelper.obtenerPerfiles()) }
     val clientes = remember { dbHelper.obtenerClientes() }
     var mensajeSnackbar by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -42,6 +42,13 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     items(pedidos) { pedido ->
                         val cliente = clientes.find { it.id == pedido.clienteId }
+                        var despacharPequenos by remember { mutableStateOf("") }
+                        var despacharMedianos by remember { mutableStateOf("") }
+                        var despacharGrandes by remember { mutableStateOf("") }
+                        val pendientePequenos = pedido.cantidadPequenos - pedido.despachadoPequenos
+                        val pendienteMedianos = pedido.cantidadMedianos - pedido.despachadoMedianos
+                        val pendienteGrandes = pedido.cantidadGrandes - pedido.despachadoGrandes
+                        val completado = pendientePequenos == 0 && pendienteMedianos == 0 && pendienteGrandes == 0
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -53,32 +60,67 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
                                     .padding(16.dp)
                                     .fillMaxWidth()
                             ) {
-                                Text("Cliente: ${cliente?.nombre ?: "Desconocido"}", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3F51B5))
+                                Text("Cliente: ${cliente?.let { String.format("%03d", it.id) + " - " + it.nombre } ?: "Desconocido"}", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3F51B5))
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Pedido: ${pedido.nombre}")
-                                Text("Ahumadores Pequeños: ${pedido.cantidadPequenos}")
-                                Text("Ahumadores Medianos: ${pedido.cantidadMedianos}")
-                                Text("Ahumadores Grandes: ${pedido.cantidadGrandes}")
+                                Text("Ahumadores Pequeños: ${pedido.cantidadPequenos} | Despachados: ${pedido.despachadoPequenos} | Pendiente: $pendientePequenos")
+                                OutlinedTextField(
+                                    value = despacharPequenos,
+                                    onValueChange = { despacharPequenos = it },
+                                    label = { Text("Despachar Pequeños") },
+                                    enabled = pedido.estado == "Activo" && pendientePequenos > 0 && !completado,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text("Ahumadores Medianos: ${pedido.cantidadMedianos} | Despachados: ${pedido.despachadoMedianos} | Pendiente: $pendienteMedianos")
+                                OutlinedTextField(
+                                    value = despacharMedianos,
+                                    onValueChange = { despacharMedianos = it },
+                                    label = { Text("Despachar Medianos") },
+                                    enabled = pedido.estado == "Activo" && pendienteMedianos > 0 && !completado,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text("Ahumadores Grandes: ${pedido.cantidadGrandes} | Despachados: ${pedido.despachadoGrandes} | Pendiente: $pendienteGrandes")
+                                OutlinedTextField(
+                                    value = despacharGrandes,
+                                    onValueChange = { despacharGrandes = it },
+                                    label = { Text("Despachar Grandes") },
+                                    enabled = pedido.estado == "Activo" && pendienteGrandes > 0 && !completado,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                                 Text("Valor Total: \$${pedido.valorTotal}", style = MaterialTheme.typography.titleMedium, color = Color.Red)
-                                Text("Fecha: ${pedido.fecha}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                                Text("Fecha comprometida: ${pedido.fechaComprometida ?: "-"}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                                Text("Estado: ${pedido.estado}", color = if (pedido.estado == "Cancelado") Color.Red else if (completado) Color.Gray else Color(0xFF388E3C), style = MaterialTheme.typography.bodySmall)
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Button(
                                     onClick = {
-                                        // Verificar stock
-                                        val stockPequenos = dbHelper.obtenerStockAhumador("Pequeño")
-                                        val stockMedianos = dbHelper.obtenerStockAhumador("Mediano")
-                                        val stockGrandes = dbHelper.obtenerStockAhumador("Grande")
-                                        if (stockPequenos >= pedido.cantidadPequenos && stockMedianos >= pedido.cantidadMedianos && stockGrandes >= pedido.cantidadGrandes) {
-                                            // Restar del stock
-                                            dbHelper.actualizarStockAhumador("Pequeño", stockPequenos - pedido.cantidadPequenos)
-                                            dbHelper.actualizarStockAhumador("Mediano", stockMedianos - pedido.cantidadMedianos)
-                                            dbHelper.actualizarStockAhumador("Grande", stockGrandes - pedido.cantidadGrandes)
-                                            mensajeSnackbar = "Pedido despachado exitosamente."
-                                        } else {
-                                            mensajeSnackbar = "No hay suficiente stock para despachar este pedido."
+                                        val dPeq = despacharPequenos.toIntOrNull() ?: 0
+                                        val dMed = despacharMedianos.toIntOrNull() ?: 0
+                                        val dGra = despacharGrandes.toIntOrNull() ?: 0
+                                        if (dPeq < 0 || dMed < 0 || dGra < 0) {
+                                            mensajeSnackbar = "No puedes despachar cantidades negativas."
+                                            return@Button
                                         }
+                                        if (dPeq > pendientePequenos || dMed > pendienteMedianos || dGra > pendienteGrandes) {
+                                            mensajeSnackbar = "No puedes despachar más de lo pendiente."
+                                            return@Button
+                                        }
+                                        // Actualizar los despachados en la base de datos
+                                        dbHelper.despacharPedido(
+                                            pedido.id,
+                                            pedido.despachadoPequenos + dPeq,
+                                            pedido.despachadoMedianos + dMed,
+                                            pedido.despachadoGrandes + dGra
+                                        )
+                                        // Restar del stock
+                                        dbHelper.actualizarStockAhumador("Pequeño", dbHelper.obtenerStockAhumador("Pequeño") - dPeq)
+                                        dbHelper.actualizarStockAhumador("Mediano", dbHelper.obtenerStockAhumador("Mediano") - dMed)
+                                        dbHelper.actualizarStockAhumador("Grande", dbHelper.obtenerStockAhumador("Grande") - dGra)
+                                        mensajeSnackbar = "Despacho realizado."
+                                        // Refrescar la lista
+                                        pedidos = dbHelper.obtenerPerfiles()
                                     },
-                                    modifier = Modifier.align(Alignment.End)
+                                    enabled = pedido.estado == "Activo" && !completado && (pendientePequenos > 0 || pendienteMedianos > 0 || pendienteGrandes > 0),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text("Despachar")
                                 }

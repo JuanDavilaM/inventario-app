@@ -8,5 +8,10 @@ data class Perfil(
     val cantidadMedianos: Int,
     val cantidadGrandes: Int,
     val valorTotal: Double,
-    val fecha: String
+    val fecha: String,
+    val despachadoPequenos: Int = 0,
+    val despachadoMedianos: Int = 0,
+    val despachadoGrandes: Int = 0,
+    val fechaComprometida: String? = null,
+    val estado: String = "Activo"
 )
