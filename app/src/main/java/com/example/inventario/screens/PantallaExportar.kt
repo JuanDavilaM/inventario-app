@@ -17,6 +17,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import android.app.Activity
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,6 +29,25 @@ fun PantallaExportar(dbHelper: InventarioDBHelper, navController: NavHostControl
     var mensajeSnackbar by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var exportando by remember { mutableStateOf(false) }
+    var restaurando by remember { mutableStateOf(false) }
+
+    // Launcher para seleccionar archivo Excel
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = result.data?.data
+            if (uri != null) {
+                restaurando = true
+                try {
+                    restaurarDesdeExcel(context, dbHelper, uri)
+                    mensajeSnackbar = "Restauración exitosa"
+                } catch (e: Exception) {
+                    mensajeSnackbar = "Error al restaurar: ${e.message}"
+                } finally {
+                    restaurando = false
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -69,7 +92,7 @@ fun PantallaExportar(dbHelper: InventarioDBHelper, navController: NavHostControl
                         exportando = false
                     }
                 },
-                enabled = !exportando,
+                enabled = !exportando && !restaurando,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (exportando) {
@@ -79,6 +102,27 @@ fun PantallaExportar(dbHelper: InventarioDBHelper, navController: NavHostControl
                     )
                 } else {
                     Text("Exportar Datos")
+                }
+            }
+
+            // Botón para restaurar
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    }
+                    launcher.launch(intent)
+                },
+                enabled = !restaurando && !exportando,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (restaurando) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White
+                    )
+                } else {
+                    Text("Restaurar desde Excel")
                 }
             }
         }
@@ -160,8 +204,9 @@ private fun exportarDatos(context: Context, dbHelper: InventarioDBHelper) {
         row.createCell(5).setCellValue(pedido.fechaComprometida)
     }
 
-    // Guardar el archivo
-    val file = File(context.getExternalFilesDir(null), fileName)
+    // Guardar el archivo en la carpeta Download
+    val downloadsDir = context.getExternalFilesDir(null)?.parentFile?.parentFile?.resolve("Download")
+    val file = File(downloadsDir, fileName)
     FileOutputStream(file).use { outputStream ->
         workbook.write(outputStream)
     }
@@ -171,4 +216,75 @@ private fun exportarDatos(context: Context, dbHelper: InventarioDBHelper) {
     // Mostrar la ruta del archivo
     val filePath = file.absolutePath
     throw Exception("Archivo guardado en: $filePath")
+}
+
+private fun restaurarDesdeExcel(context: Context, dbHelper: InventarioDBHelper, uri: Uri) {
+    val inputStream = context.contentResolver.openInputStream(uri)
+    val workbook = XSSFWorkbook(inputStream)
+
+    // --- BORRAR DATOS EXISTENTES ---
+    val db = dbHelper.writableDatabase
+    db.delete("articulos", null, null)
+    db.delete("clientes", null, null)
+    db.delete("perfiles", null, null)
+
+    // --- RESTAURAR INVENTARIO ---
+    val sheetInventario = workbook.getSheet("Inventario")
+    for (rowIndex in 1..sheetInventario.lastRowNum) { // Saltar encabezado
+        val row = sheetInventario.getRow(rowIndex)
+        if (row != null) {
+            val codigo = row.getCell(0)?.stringCellValue ?: ""
+            val nombre = row.getCell(1)?.stringCellValue ?: ""
+            val existencia = row.getCell(2)?.numericCellValue?.toInt() ?: 0
+            val valor = row.getCell(3)?.numericCellValue ?: 0.0
+            val tipoAsador = row.getCell(4)?.stringCellValue ?: ""
+            val unidadesNecesarias = row.getCell(5)?.numericCellValue?.toInt() ?: 0
+            val articulo = Articulo(codigo, nombre, valor, existencia, tipoAsador, unidadesNecesarias)
+            dbHelper.insertarArticulo(articulo)
+        }
+    }
+
+    // --- RESTAURAR CLIENTES ---
+    val sheetClientes = workbook.getSheet("Clientes")
+    for (rowIndex in 1..sheetClientes.lastRowNum) {
+        val row = sheetClientes.getRow(rowIndex)
+        if (row != null) {
+            val id = row.getCell(0)?.numericCellValue?.toInt() ?: 0
+            val nombre = row.getCell(1)?.stringCellValue ?: ""
+            val telefono = row.getCell(2)?.stringCellValue ?: ""
+            val correo = row.getCell(3)?.stringCellValue ?: ""
+            dbHelper.insertarCliente(nombre, telefono, correo)
+        }
+    }
+
+    // --- RESTAURAR PEDIDOS (Perfiles) ---
+    val sheetPedidos = workbook.getSheet("Pedidos")
+    for (rowIndex in 1..sheetPedidos.lastRowNum) {
+        val row = sheetPedidos.getRow(rowIndex)
+        if (row != null) {
+            val id = row.getCell(0)?.numericCellValue?.toInt() ?: 0
+            val clienteId = row.getCell(1)?.numericCellValue?.toInt() ?: 0
+            val nombre = row.getCell(2)?.stringCellValue ?: ""
+            val estado = row.getCell(3)?.stringCellValue ?: ""
+            val valorTotal = row.getCell(4)?.numericCellValue ?: 0.0
+            val fechaComprometida = row.getCell(5)?.stringCellValue ?: ""
+            dbHelper.insertarPerfil(
+                clienteId = clienteId,
+                nombre = nombre,
+                cantidadPequenos = 0,
+                cantidadMedianos = 0,
+                cantidadGrandes = 0,
+                valorTotal = valorTotal,
+                fecha = "",
+                fechaComprometida = fechaComprometida,
+                despachadoPequenos = 0,
+                despachadoMedianos = 0,
+                despachadoGrandes = 0,
+                estado = estado
+            )
+        }
+    }
+
+    workbook.close()
+    inputStream?.close()
 } 
