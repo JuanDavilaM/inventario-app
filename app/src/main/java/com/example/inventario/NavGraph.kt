@@ -63,5 +63,9 @@ fun AppNavHost(
             PantallaCalculoFaltante(dbHelper, navController)
         }
 
+        composable("exportar") {
+            PantallaExportar(dbHelper, navController)
+        }
+
     }
 }

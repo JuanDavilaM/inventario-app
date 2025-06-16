@@ -30,6 +30,11 @@ fun PantallaCartera(dbHelper: InventarioDBHelper, navController: NavHostControll
     val snackbarHostState = remember { SnackbarHostState() }
     val hoy = remember { java.text.SimpleDateFormat("dd/MM/yyyy").format(java.util.Date()) }
     var pedidoSeleccionadoId by remember { mutableStateOf(0) }
+    var filtroBusqueda by remember { mutableStateOf("") }
+
+    val clientesFiltrados = clientes.filter { 
+        it.nombre.contains(filtroBusqueda, ignoreCase = true) 
+    }
 
     Scaffold(
         topBar = {
@@ -45,11 +50,21 @@ fun PantallaCartera(dbHelper: InventarioDBHelper, navController: NavHostControll
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text("Clientes y Deudas", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3F51B5))
-            if (clientes.isEmpty()) {
+            
+            // Campo de búsqueda
+            OutlinedTextField(
+                value = filtroBusqueda,
+                onValueChange = { filtroBusqueda = it },
+                label = { Text("Buscar cliente por nombre") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            if (clientesFiltrados.isEmpty()) {
                 Text("No hay clientes registrados.", color = Color.Gray)
             } else {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(clientes) { cliente ->
+                    items(clientesFiltrados) { cliente ->
                         val pedidosCliente = perfiles.filter { it.clienteId == cliente.id && it.estado != "Completado" && it.estado != "Cancelado" }
                         val totalPedidos = pedidosCliente.sumOf { it.valorTotal }
                         val totalPagos = dbHelper.obtenerPagosPorCliente(cliente.id).sumOf { (it["monto"] as? Double) ?: 0.0 }

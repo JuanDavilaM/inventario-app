@@ -5,13 +5,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavHostController
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,7 +31,6 @@ fun Header(
                     )
                 }
             } else {
-                // Mostrar el ícono de menú cuando no se muestra el botón de retroceso
                 IconButton(onClick = { expanded = true }) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
@@ -43,10 +38,12 @@ fun Header(
                         tint = Color.White
                     )
                 }
+
                 DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
+                    // Secciones principales
                     DropdownMenuItem(
                         text = { Text("Inventario") },
                         onClick = {
@@ -62,37 +59,7 @@ fun Header(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Lista de Artículos") },
-                        onClick = {
-                            expanded = false
-                            navController.navigate("lista")
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = { Text("Clientes") },
-                        onClick = {
-                            expanded = false
-                            navController.navigate("clientes")
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = { Text("Lista de Asadores") },
-                        onClick = {
-                            expanded = false
-                            navController.navigate("pantalla_lista_asadores")
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Calcular Asadores") },
-                        onClick = {
-                            expanded = false
-                            navController.navigate("calcular")
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Perfiles") },
+                        text = { Text("Pedidos") },
                         onClick = {
                             expanded = false
                             navController.navigate("perfiles")
@@ -119,6 +86,38 @@ fun Header(
                             navController.navigate("cartera")
                         }
                     )
+
+                    // Exportar datos
+                    DropdownMenuItem(
+                        text = { Text("Exportar Datos") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("exportar")
+                        }
+                    )
+
+                    // Listas y cálculos
+                    DropdownMenuItem(
+                        text = { Text("Lista de Artículos") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("lista")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Lista de Ahumadores") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("pantalla_lista_asadores")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Calcular Ahumadores") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("calcular")
+                        }
+                    )
                     DropdownMenuItem(
                         text = { Text("Cálculo Faltante") },
                         onClick = {
@@ -131,4 +130,3 @@ fun Header(
         }
     )
 }
- 
