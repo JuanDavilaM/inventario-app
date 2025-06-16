@@ -48,6 +48,29 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
     val snackbarHostState = remember { SnackbarHostState() }
     var mensajeSnackbar by remember { mutableStateOf("") }
 
+    // Función para generar el siguiente código basado en el tipo de asador
+    fun generarSiguienteCodigo(tipo: String): String {
+        val prefijo = when (tipo) {
+            "Pequeño" -> "1"
+            "Mediano" -> "2"
+            "Grande" -> "3"
+            else -> "0"
+        }
+        
+        val articulos = dbHelper.obtenerTodos()
+        val codigosExistentes = articulos
+            .filter { it.codigo.startsWith(prefijo) }
+            .map { it.codigo.substring(1).toIntOrNull() ?: 0 }
+            .toSet()
+        
+        var siguienteNumero = 1
+        while (siguienteNumero in codigosExistentes) {
+            siguienteNumero++
+        }
+        
+        return "$prefijo${String.format("%02d", siguienteNumero)}"
+    }
+
     Scaffold(
         topBar = {
             Header(
@@ -79,7 +102,8 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
                 value = codigo,
                 onValueChange = { codigo = it },
                 label = { Text("Código") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = false
             )
             OutlinedTextField(
                 value = nombre,
@@ -119,6 +143,9 @@ fun PantallaInventario(dbHelper: InventarioDBHelper, navController: NavHostContr
                     tiposAsador.forEach { tipo ->
                         DropdownMenuItem(text = { Text(tipo) }, onClick = {
                             tipoAsador = tipo
+                            if (tipo != "Todos" && tipo != "No aplica") {
+                                codigo = generarSiguienteCodigo(tipo)
+                            }
                             expanded = false
                         })
                     }

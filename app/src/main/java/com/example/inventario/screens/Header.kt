@@ -105,8 +105,16 @@ fun Header(
                             navController.navigate("clientes")
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("Despachador") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("despachador")
+                        }
+                    )
                 }
             }
         }
     )
 }
+ 

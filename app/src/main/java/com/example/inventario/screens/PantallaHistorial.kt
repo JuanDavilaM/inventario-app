@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -58,7 +59,13 @@ fun PantallaHistorial(dbHelper: InventarioDBHelper, navController: NavHostContro
                         elevation = CardDefaults.cardElevation(4.dp)
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
-                            Text("${mov.fecha} - ${mov.tipo}", style = MaterialTheme.typography.bodyMedium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("${mov.fecha} - ${mov.tipo}", style = MaterialTheme.typography.bodyMedium)
+                                if (mov.esAjuste) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("✔️ Ajuste", color = Color(0xFF388E3C), style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                             Text("Código: ${mov.codigo}", style = MaterialTheme.typography.bodySmall)
                             Text("Cantidad: ${mov.cantidad} | Valor: \$${mov.valorUnitario} | Prom: \$${mov.promedio}", style = MaterialTheme.typography.bodySmall)
                         }

@@ -28,7 +28,7 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
     var clienteSeleccionado by remember { mutableStateOf<Cliente?>(null) }
     var expandedClientes by remember { mutableStateOf(false) }
 
-    var nombre by remember { mutableStateOf("") }
+    var contadorPedidos by remember { mutableStateOf(dbHelper.obtenerPerfiles().size + 1) }
     var cantidadPequenos by remember { mutableStateOf("") }
     var cantidadMedianos by remember { mutableStateOf("") }
     var cantidadGrandes by remember { mutableStateOf("") }
@@ -76,16 +76,16 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
             // Menú desplegable para seleccionar cliente
             ExposedDropdownMenuBox(expanded = expandedClientes, onExpandedChange = { expandedClientes = !expandedClientes }) {
                 OutlinedTextField(
-                    value = clienteSeleccionado?.nombre ?: "Selecciona un cliente",
+                    value = clienteSeleccionado?.let { String.format("%03d", it.id) + " - " + it.nombre } ?: "Selecciona un cliente",
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Cliente") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedClientes) },
                     modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
+            )
                 ExposedDropdownMenu(expanded = expandedClientes, onDismissRequest = { expandedClientes = false }) {
                     clientes.forEach { cliente ->
-                        DropdownMenuItem(text = { Text(cliente.nombre) }, onClick = {
+                        DropdownMenuItem(text = { Text(String.format("%03d", cliente.id) + " - " + cliente.nombre) }, onClick = {
                             clienteSeleccionado = cliente
                             expandedClientes = false
                         })
@@ -93,7 +93,8 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
                 }
             }
 
-            OutlinedTextField(value = nombre, onValueChange = { nombre = it }, label = { Text("Nombre del Pedido") }, modifier = Modifier.fillMaxWidth())
+            Text("Número de Pedido: Pedido #$contadorPedidos", style = MaterialTheme.typography.titleMedium)
+
             OutlinedTextField(value = cantidadPequenos, onValueChange = { cantidadPequenos = it }, label = { Text("Cantidad de Ahumadores Pequeños") }, keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = cantidadMedianos, onValueChange = { cantidadMedianos = it }, label = { Text("Cantidad de Ahumadores Medianos") }, keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
             OutlinedTextField(value = cantidadGrandes, onValueChange = { cantidadGrandes = it }, label = { Text("Cantidad de Ahumadores Grandes") }, keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
@@ -153,12 +154,13 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
                     }
                     if (clienteSeleccionado == null) {
                         mensajeSnackbar = "Selecciona un cliente."
-                    } else if (nombre.isBlank() || cantidadPequenos.isBlank() || cantidadMedianos.isBlank() || cantidadGrandes.isBlank()) {
+                    } else if (cantidadPequenos.isBlank() || cantidadMedianos.isBlank() || cantidadGrandes.isBlank()) {
                         mensajeSnackbar = "Por favor complete todos los campos."
                     } else {
+                        val nombrePedido = "Pedido #$contadorPedidos"
                         val insertado = dbHelper.insertarPerfil(
                             clienteId = clienteSeleccionado!!.id,
-                            nombre = nombre,
+                            nombre = nombrePedido,
                             cantidadPequenos = cantidadPequenosInt,
                             cantidadMedianos = cantidadMedianosInt,
                             cantidadGrandes = cantidadGrandesInt,
@@ -166,7 +168,12 @@ fun PantallaPerfiles(dbHelper: InventarioDBHelper, navController: NavHostControl
                             fecha = fechaFinal
                         )
                         if (insertado) {
-                            nombre = ""; cantidadPequenos = ""; cantidadMedianos = ""; cantidadGrandes = ""; valorTotal = "0.00"; fecha = ""
+                            contadorPedidos = dbHelper.obtenerPerfiles().size + 1
+                            cantidadPequenos = ""
+                            cantidadMedianos = ""
+                            cantidadGrandes = ""
+                            valorTotal = "0.00"
+                            fecha = ""
                             mensajeSnackbar = "Perfil guardado exitosamente."
                         } else {
                             mensajeSnackbar = "Error al guardar perfil."

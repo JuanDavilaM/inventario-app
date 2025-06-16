@@ -47,6 +47,10 @@ fun AppNavHost(
             PantallaListaPedidos(dbHelper, navController)
         }
 
+        composable("despachador") {
+            PantallaDespachador(dbHelper, navController)
+        }
+
         composable("clientes") {
             PantallaClientes(dbHelper, navController)
         }

@@ -11,7 +11,7 @@ import com.example.inventario.screens.Perfil
 import com.example.inventario.screens.Cliente
 
 class InventarioDBHelper(context: Context) :
-    SQLiteOpenHelper(context, "InventarioDB", null, 10) { // Actualiza la versión de la base de datos a 10
+    SQLiteOpenHelper(context, "InventarioDB", null, 11) { // Subir versión a 11
 
     override fun onCreate(db: SQLiteDatabase) {
         // Crear la tabla de artículos (para artículos regulares)
@@ -35,7 +35,8 @@ class InventarioDBHelper(context: Context) :
                 codigo TEXT,
                 cantidad INTEGER,
                 valorUnitario REAL,
-                promedio REAL
+                promedio REAL,
+                esAjuste INTEGER DEFAULT 0
             )"""
         )
 
@@ -92,6 +93,11 @@ class InventarioDBHelper(context: Context) :
         if (oldVersion < 10) {
             try {
                 db.execSQL("ALTER TABLE perfiles ADD COLUMN fecha TEXT DEFAULT ''")
+            } catch (e: Exception) {}
+        }
+        if (oldVersion < 11) {
+            try {
+                db.execSQL("ALTER TABLE movimientos ADD COLUMN esAjuste INTEGER DEFAULT 0")
             } catch (e: Exception) {}
         }
         // Actualiza la base de datos si es necesario
@@ -162,13 +168,13 @@ class InventarioDBHelper(context: Context) :
         } else {
             // Si no existe, creamos un nuevo registro
             cursor.close()
-            val values = ContentValues().apply {
+        val values = ContentValues().apply {
                 put("codigo", codigoAsador)
-                put("nombre", "Ahumador tipo $tipoAsador")
+            put("nombre", "Ahumador tipo $tipoAsador")
                 put("valor", valorAsador)
                 put("existencia", cantidadAsadores)
                 put("tipoAsador", tipoAsador)
-            }
+        }
             val resultado = db.insert("asadores", null, values)
             return resultado != -1L
         }
@@ -201,15 +207,17 @@ class InventarioDBHelper(context: Context) :
             put("cantidad", mov.cantidad)
             put("valorUnitario", mov.valorUnitario)
             put("promedio", mov.promedio)
+            put("esAjuste", if (mov.esAjuste) 1 else 0)
         }
         val result = db.insert("movimientos", null, values)
 
         val signo = if (mov.tipo == "Entrada") 1 else -1
-        db.execSQL(
-            "UPDATE articulos SET existencia = existencia + (${signo} * ${mov.cantidad}) WHERE codigo = ?",
-            arrayOf(mov.codigo)
-        )
-
+        if (!mov.esAjuste) {
+            db.execSQL(
+                "UPDATE articulos SET existencia = existencia + (${signo} * ${mov.cantidad}) WHERE codigo = ?",
+                arrayOf(mov.codigo)
+            )
+        }
         return result != -1L
     }
 
@@ -221,13 +229,14 @@ class InventarioDBHelper(context: Context) :
         while (cursor.moveToNext()) {
             lista.add(
                 Movimiento(
-                    id = cursor.getInt(0),
-                    tipo = cursor.getString(1),
-                    fecha = cursor.getString(2),
-                    codigo = cursor.getString(3),
-                    cantidad = cursor.getInt(4),
-                    valorUnitario = cursor.getDouble(5),
-                    promedio = cursor.getDouble(6)
+                    id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                    tipo = cursor.getString(cursor.getColumnIndexOrThrow("tipo")),
+                    fecha = cursor.getString(cursor.getColumnIndexOrThrow("fecha")),
+                    codigo = cursor.getString(cursor.getColumnIndexOrThrow("codigo")),
+                    cantidad = cursor.getInt(cursor.getColumnIndexOrThrow("cantidad")),
+                    valorUnitario = cursor.getDouble(cursor.getColumnIndexOrThrow("valorUnitario")),
+                    promedio = cursor.getDouble(cursor.getColumnIndexOrThrow("promedio")),
+                    esAjuste = (cursor.getColumnIndex("esAjuste") != -1 && cursor.getInt(cursor.getColumnIndexOrThrow("esAjuste")) == 1)
                 )
             )
         }
@@ -382,5 +391,27 @@ class InventarioDBHelper(context: Context) :
         }
         cursor.close()
         return lista
+    }
+
+    // Obtener el stock de un tipo de ahumador
+    fun obtenerStockAhumador(tipoAsador: String): Int {
+        val db = readableDatabase
+        val cursor = db.rawQuery("SELECT existencia FROM asadores WHERE tipoAsador = ?", arrayOf(tipoAsador))
+        var stock = 0
+        if (cursor.moveToFirst()) {
+            stock = cursor.getInt(cursor.getColumnIndexOrThrow("existencia"))
+        }
+        cursor.close()
+        return stock
+    }
+
+    // Actualizar el stock de un tipo de ahumador
+    fun actualizarStockAhumador(tipoAsador: String, nuevaExistencia: Int): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("existencia", nuevaExistencia)
+        }
+        val filasAfectadas = db.update("asadores", values, "tipoAsador = ?", arrayOf(tipoAsador))
+        return filasAfectadas > 0
     }
 }
