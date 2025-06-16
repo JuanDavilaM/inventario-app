@@ -17,10 +17,15 @@ import com.example.inventario.InventarioDBHelper
 @Composable
 fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostController) {
     val context = LocalContext.current
+    var filtro by remember { mutableStateOf("") }
     var pedidos by remember { mutableStateOf(dbHelper.obtenerPerfiles()) }
     val clientes = remember { dbHelper.obtenerClientes() }
     var mensajeSnackbar by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val pedidosFiltrados = pedidos.filter { it.nombre.contains(filtro, ignoreCase = true) }
+    val pendientes = pedidosFiltrados.filter { it.estado == "Activo" }
+    val completados = pedidosFiltrados.filter { it.estado == "Completado" }
 
     Scaffold(
         topBar = {
@@ -36,11 +41,21 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
                 .padding(paddingValues),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (pedidos.isEmpty()) {
+            OutlinedTextField(
+                value = filtro,
+                onValueChange = {
+                    filtro = it
+                    pedidos = dbHelper.obtenerPerfiles()
+                },
+                label = { Text("Filtrar por número de pedido") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text("Pedidos Pendientes", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3F51B5))
+            if (pendientes.isEmpty()) {
                 Text("No hay pedidos pendientes.", color = Color.Gray)
             } else {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(pedidos) { pedido ->
+                    items(pendientes) { pedido ->
                         val cliente = clientes.find { it.id == pedido.clienteId }
                         var despacharPequenos by remember { mutableStateOf("") }
                         var despacharMedianos by remember { mutableStateOf("") }
@@ -104,26 +119,65 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
                                             mensajeSnackbar = "No puedes despachar más de lo pendiente."
                                             return@Button
                                         }
-                                        // Actualizar los despachados en la base de datos
-                                        dbHelper.despacharPedido(
+                                        // Verificar stock antes de despachar
+                                        val stockPeq = dbHelper.obtenerStockAhumador("Pequeño")
+                                        val stockMed = dbHelper.obtenerStockAhumador("Mediano")
+                                        val stockGra = dbHelper.obtenerStockAhumador("Grande")
+                                        if (dPeq > stockPeq || dMed > stockMed || dGra > stockGra) {
+                                            mensajeSnackbar = "No hay suficiente stock para despachar."
+                                            return@Button
+                                        }
+                                        val exito = dbHelper.despacharPedido(
                                             pedido.id,
                                             pedido.despachadoPequenos + dPeq,
                                             pedido.despachadoMedianos + dMed,
                                             pedido.despachadoGrandes + dGra
                                         )
-                                        // Restar del stock
-                                        dbHelper.actualizarStockAhumador("Pequeño", dbHelper.obtenerStockAhumador("Pequeño") - dPeq)
-                                        dbHelper.actualizarStockAhumador("Mediano", dbHelper.obtenerStockAhumador("Mediano") - dMed)
-                                        dbHelper.actualizarStockAhumador("Grande", dbHelper.obtenerStockAhumador("Grande") - dGra)
-                                        mensajeSnackbar = "Despacho realizado."
-                                        // Refrescar la lista
-                                        pedidos = dbHelper.obtenerPerfiles()
+                                        if (exito) {
+                                            mensajeSnackbar = "Despacho realizado."
+                                            pedidos = dbHelper.obtenerPerfiles()
+                                        } else {
+                                            mensajeSnackbar = "No se pudo despachar."
+                                        }
                                     },
                                     enabled = pedido.estado == "Activo" && !completado && (pendientePequenos > 0 || pendienteMedianos > 0 || pendienteGrandes > 0),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text("Despachar")
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Pedidos Completados", style = MaterialTheme.typography.titleMedium, color = Color(0xFF388E3C))
+            if (completados.isEmpty()) {
+                Text("No hay pedidos completados.", color = Color.Gray)
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    items(completados) { pedido ->
+                        val cliente = clientes.find { it.id == pedido.clienteId }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth()
+                            ) {
+                                Text("Cliente: ${cliente?.let { String.format("%03d", it.id) + " - " + it.nombre } ?: "Desconocido"}", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3F51B5))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Pedido: ${pedido.nombre}")
+                                Text("PEDIDO COMPLETADO", color = Color(0xFF388E3C), style = MaterialTheme.typography.titleMedium)
+                                Text("Ahumadores Pequeños: ${pedido.cantidadPequenos} | Despachados: ${pedido.despachadoPequenos}")
+                                Text("Ahumadores Medianos: ${pedido.cantidadMedianos} | Despachados: ${pedido.despachadoMedianos}")
+                                Text("Ahumadores Grandes: ${pedido.cantidadGrandes} | Despachados: ${pedido.despachadoGrandes}")
+                                Text("Valor Total: \$${pedido.valorTotal}", style = MaterialTheme.typography.titleMedium, color = Color.Red)
+                                Text("Fecha comprometida: ${pedido.fechaComprometida ?: "-"}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }

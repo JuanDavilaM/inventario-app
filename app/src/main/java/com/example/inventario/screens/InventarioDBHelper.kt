@@ -453,19 +453,59 @@ class InventarioDBHelper(context: Context) :
     }
 
     // Despachar parcialmente un pedido
+    // Despachar parcialmente un pedido
     fun despacharPedido(
         pedidoId: Int,
         nuevosDespachadoPequenos: Int,
         nuevosDespachadoMedianos: Int,
         nuevosDespachadoGrandes: Int
-    ) {
+    ): Boolean {
         val db = writableDatabase
+        // Obtener el pedido actual
+        val cursor = db.rawQuery(
+            "SELECT cantidadPequenos, cantidadMedianos, cantidadGrandes, despachadoPequenos, despachadoMedianos, despachadoGrandes FROM perfiles WHERE id = ?",
+            arrayOf(pedidoId.toString())
+        )
+        if (!cursor.moveToFirst()) {
+            cursor.close()
+            return false
+        }
+        val totalPeq = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadPequenos"))
+        val totalMed = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadMedianos"))
+        val totalGra = cursor.getInt(cursor.getColumnIndexOrThrow("cantidadGrandes"))
+        val anteriorDespPeq = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoPequenos"))
+        val anteriorDespMed = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoMedianos"))
+        val anteriorDespGra = cursor.getInt(cursor.getColumnIndexOrThrow("despachadoGrandes"))
+        cursor.close()
+
+        // Calcular cuántos se están despachando en este movimiento
+        val aDespacharPeq = nuevosDespachadoPequenos - anteriorDespPeq
+        val aDespacharMed = nuevosDespachadoMedianos - anteriorDespMed
+        val aDespacharGra = nuevosDespachadoGrandes - anteriorDespGra
+
+        // Verificar stock
+        val stockPeq = obtenerStockAhumador("Pequeño")
+        val stockMed = obtenerStockAhumador("Mediano")
+        val stockGra = obtenerStockAhumador("Grande")
+        if (aDespacharPeq > stockPeq || aDespacharMed > stockMed || aDespacharGra > stockGra) {
+            return false // No hay stock suficiente
+        }
+
+        // Actualizar stock
+        if (aDespacharPeq > 0) actualizarStockAhumador("Pequeño", stockPeq - aDespacharPeq)
+        if (aDespacharMed > 0) actualizarStockAhumador("Mediano", stockMed - aDespacharMed)
+        if (aDespacharGra > 0) actualizarStockAhumador("Grande", stockGra - aDespacharGra)
+
+        // Verificar si el pedido está completado
+        val completado = (nuevosDespachadoPequenos >= totalPeq) && (nuevosDespachadoMedianos >= totalMed) && (nuevosDespachadoGrandes >= totalGra)
         val values = ContentValues().apply {
             put("despachadoPequenos", nuevosDespachadoPequenos)
             put("despachadoMedianos", nuevosDespachadoMedianos)
             put("despachadoGrandes", nuevosDespachadoGrandes)
+            if (completado) put("estado", "Completado")
         }
         db.update("perfiles", values, "id = ?", arrayOf(pedidoId.toString()))
+        return true
     }
 
     fun actualizarEstadoPedido(pedidoId: Int, nuevoEstado: String) {
