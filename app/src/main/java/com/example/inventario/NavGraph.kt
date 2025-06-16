@@ -55,5 +55,13 @@ fun AppNavHost(
             PantallaClientes(dbHelper, navController)
         }
 
+        composable("cartera") {
+            PantallaCartera(dbHelper, navController)
+        }
+
+        composable("calculo_faltante") {
+            PantallaCalculoFaltante(dbHelper, navController)
+        }
+
     }
 }

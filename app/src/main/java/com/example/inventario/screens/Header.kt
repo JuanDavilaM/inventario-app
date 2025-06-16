@@ -112,6 +112,20 @@ fun Header(
                             navController.navigate("despachador")
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("Cartera") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("cartera")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Cálculo Faltante") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("calculo_faltante")
+                        }
+                    )
                 }
             }
         }

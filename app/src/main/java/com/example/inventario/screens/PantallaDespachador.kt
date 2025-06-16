@@ -26,6 +26,10 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
     val pedidosFiltrados = pedidos.filter { it.nombre.contains(filtro, ignoreCase = true) }
     val pendientes = pedidosFiltrados.filter { it.estado == "Activo" }
     val completados = pedidosFiltrados.filter { it.estado == "Completado" }
+    val anulados = pedidosFiltrados.filter { it.estado == "Cancelado" || it.estado == "Anulado" }
+    var mostrarDialogoAnulacion by remember { mutableStateOf(false) }
+    var razonAnulacion by remember { mutableStateOf("") }
+    var pedidoAAnular by remember { mutableStateOf<Perfil?>(null) }
 
     Scaffold(
         topBar = {
@@ -145,6 +149,17 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
                                 ) {
                                     Text("Despachar")
                                 }
+                                // Botón cancelar pedido
+                                Button(
+                                    onClick = {
+                                        pedidoAAnular = pedido
+                                        mostrarDialogoAnulacion = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Cancelar Pedido", color = Color.White)
+                                }
                             }
                         }
                     }
@@ -183,7 +198,78 @@ fun PantallaDespachador(dbHelper: InventarioDBHelper, navController: NavHostCont
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Pedidos Anulados", style = MaterialTheme.typography.titleMedium, color = Color.Red)
+            if (anulados.isEmpty()) {
+                Text("No hay pedidos anulados.", color = Color.Gray)
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    items(anulados) { pedido ->
+                        val cliente = clientes.find { it.id == pedido.clienteId }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth()
+                            ) {
+                                Text("Cliente: ${cliente?.let { String.format("%03d", it.id) + " - " + it.nombre } ?: "Desconocido"}", style = MaterialTheme.typography.titleMedium, color = Color(0xFF3F51B5))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Pedido: ${pedido.nombre}")
+                                Text("PEDIDO ANULADO", color = Color.Red, style = MaterialTheme.typography.titleMedium)
+                                Text("Ahumadores Pequeños: ${pedido.cantidadPequenos} | Despachados: ${pedido.despachadoPequenos}")
+                                Text("Ahumadores Medianos: ${pedido.cantidadMedianos} | Despachados: ${pedido.despachadoMedianos}")
+                                Text("Ahumadores Grandes: ${pedido.cantidadGrandes} | Despachados: ${pedido.despachadoGrandes}")
+                                Text("Valor Total: \$${pedido.valorTotal}", style = MaterialTheme.typography.titleMedium, color = Color.Red)
+                                Text("Fecha comprometida: ${pedido.fechaComprometida ?: "-"}", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    if (mostrarDialogoAnulacion) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoAnulacion = false; razonAnulacion = "" },
+            title = { Text("Cancelar Pedido") },
+            text = {
+                Column {
+                    Text("Por favor, escribe la razón de anulación:")
+                    OutlinedTextField(
+                        value = razonAnulacion,
+                        onValueChange = { razonAnulacion = it },
+                        label = { Text("Razón de anulación") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pedidoAAnular?.let {
+                            dbHelper.actualizarEstadoPedido(it.id, "Cancelado")
+                            pedidos = dbHelper.obtenerPerfiles()
+                            mensajeSnackbar = "Pedido anulado."
+                        }
+                        mostrarDialogoAnulacion = false
+                        razonAnulacion = ""
+                    }
+                ) {
+                    Text("Anular")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogoAnulacion = false; razonAnulacion = "" }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     LaunchedEffect(mensajeSnackbar) {

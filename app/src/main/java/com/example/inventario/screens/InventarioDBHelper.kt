@@ -11,7 +11,7 @@ import com.example.inventario.screens.Perfil
 import com.example.inventario.screens.Cliente
 
 class InventarioDBHelper(context: Context) :
-    SQLiteOpenHelper(context, "InventarioDB", null, 12) { // Subir versión a 12
+    SQLiteOpenHelper(context, "InventarioDB", null, 13) { // Subir versión a 13
 
     override fun onCreate(db: SQLiteDatabase) {
         // Crear la tabla de artículos (para artículos regulares)
@@ -39,6 +39,8 @@ class InventarioDBHelper(context: Context) :
                 esAjuste INTEGER DEFAULT 0
             )"""
         )
+
+        
 
         // Crear la tabla de asadores (solo para ahumadores creados)
         db.execSQL(
@@ -77,6 +79,17 @@ class InventarioDBHelper(context: Context) :
                 estado TEXT DEFAULT 'Activo'
             )"""
         )
+
+        db.execSQL(
+            """CREATE TABLE pagos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                clienteId INTEGER,
+                pedidoId INTEGER,
+                monto REAL,
+                fecha TEXT,
+                observaciones TEXT
+            )"""
+        )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -111,6 +124,9 @@ class InventarioDBHelper(context: Context) :
             try { db.execSQL("ALTER TABLE perfiles ADD COLUMN despachadoGrandes INTEGER DEFAULT 0") } catch (e: Exception) {}
             try { db.execSQL("ALTER TABLE perfiles ADD COLUMN fechaComprometida TEXT") } catch (e: Exception) {}
             try { db.execSQL("ALTER TABLE perfiles ADD COLUMN estado TEXT DEFAULT 'Activo'") } catch (e: Exception) {}
+        }
+        if (oldVersion < 13) {
+            try { db.execSQL("CREATE TABLE IF NOT EXISTS pagos (id INTEGER PRIMARY KEY AUTOINCREMENT, clienteId INTEGER, pedidoId INTEGER, monto REAL, fecha TEXT, observaciones TEXT)") } catch (e: Exception) {}
         }
         // Actualiza la base de datos si es necesario
         if (oldVersion < 7) {  // Si la versión es menor que 7, actualiza creando la tabla 'perfiles'
@@ -514,5 +530,61 @@ class InventarioDBHelper(context: Context) :
             put("estado", nuevoEstado)
         }
         db.update("perfiles", values, "id = ?", arrayOf(pedidoId.toString()))
+    }
+
+    // Insertar un pago
+    fun insertarPago(clienteId: Int, pedidoId: Int, monto: Double, fecha: String, observaciones: String?): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("clienteId", clienteId)
+            put("pedidoId", pedidoId)
+            put("monto", monto)
+            put("fecha", fecha)
+            put("observaciones", observaciones)
+        }
+        val resultado = db.insert("pagos", null, values)
+        return resultado != -1L
+    }
+
+    // Obtener pagos por cliente
+    fun obtenerPagosPorCliente(clienteId: Int): List<Map<String, Any?>> {
+        val lista = mutableListOf<Map<String, Any?>>()
+        val db = readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM pagos WHERE clienteId = ?", arrayOf(clienteId.toString()))
+        while (cursor.moveToNext()) {
+            lista.add(
+                mapOf(
+                    "id" to cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                    "clienteId" to cursor.getInt(cursor.getColumnIndexOrThrow("clienteId")),
+                    "pedidoId" to cursor.getInt(cursor.getColumnIndexOrThrow("pedidoId")),
+                    "monto" to cursor.getDouble(cursor.getColumnIndexOrThrow("monto")),
+                    "fecha" to cursor.getString(cursor.getColumnIndexOrThrow("fecha")),
+                    "observaciones" to cursor.getString(cursor.getColumnIndexOrThrow("observaciones"))
+                )
+            )
+        }
+        cursor.close()
+        return lista
+    }
+
+    // Obtener pagos por pedido
+    fun obtenerPagosPorPedido(pedidoId: Int): List<Map<String, Any?>> {
+        val lista = mutableListOf<Map<String, Any?>>()
+        val db = readableDatabase
+        val cursor = db.rawQuery("SELECT * FROM pagos WHERE pedidoId = ?", arrayOf(pedidoId.toString()))
+        while (cursor.moveToNext()) {
+            lista.add(
+                mapOf(
+                    "id" to cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                    "clienteId" to cursor.getInt(cursor.getColumnIndexOrThrow("clienteId")),
+                    "pedidoId" to cursor.getInt(cursor.getColumnIndexOrThrow("pedidoId")),
+                    "monto" to cursor.getDouble(cursor.getColumnIndexOrThrow("monto")),
+                    "fecha" to cursor.getString(cursor.getColumnIndexOrThrow("fecha")),
+                    "observaciones" to cursor.getString(cursor.getColumnIndexOrThrow("observaciones"))
+                )
+            )
+        }
+        cursor.close()
+        return lista
     }
 }
